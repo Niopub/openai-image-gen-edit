@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Git
+.git/
+.gitignore
+.github/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Testing
+.tox/
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Docs
+docs/
+site/
+
+# Other
+*.md
+!README.md
+LICENSE
+CONTRIBUTING.md
+Makefile
+tox.ini
+pytest.ini
+mkdocs.yml
+

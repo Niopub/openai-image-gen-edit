@@ -1,10 +1,10 @@
 [project]
-name = "mcp-openai-image-generation"
-version = "0.0.1"
-description = "OpenAI image generation MCP server"
-authors = [{ name = "Wh1isper", email = "jizhongsheng957@gmail.com" }]
+name = "openai-image-gen-edit"
+version = "0.1.8"
+description = "OpenAI image generation and editing MCP server"
+authors = [{ name = "Founder DS", email = "founder@niopub.com" }]
 readme = "README.md"
-keywords = ['python']
+keywords = ['python', 'openai', 'image', 'generation', 'edit']
 requires-python = ">=3.10,<4.0"
 classifiers = [
     "Intended Audience :: Developers",
@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/ai-zerolab/mcp-openai-image-generation"
+Repository = "https://github.com/Niopub/mcp-openai-image-generation"
 
 [dependency-groups]
 dev = [
@@ -41,17 +41,17 @@ dev = [
     "mkdocstrings[python]>=0.26.1",
 ]
 [project.scripts]
-mcp-openai-image-generation = "mcp_openai_image_generation.cli:app"
+openai-image-gen-edit = "openai_image_gen_edit.cli:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.setuptools]
-py-modules = ["mcp_openai_image_generation"]
+py-modules = ["openai_image_gen_edit"]
 
 [tool.mypy]
-files = ["mcp_openai_image_generation"]
+files = ["openai_image_gen_edit"]
 disallow_untyped_defs = true
 disallow_any_unimported = true
 no_implicit_optional = true
@@ -119,4 +119,4 @@ skip_empty = true
 
 [tool.coverage.run]
 branch = true
-source = ["mcp_openai_image_generation"]
+source = ["openai_image_gen_edit"]

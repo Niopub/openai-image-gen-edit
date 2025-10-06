@@ -1,11 +1,11 @@
 site_name: mcp-openai-image-generation
-repo_url: https://github.com/ai-zerolab/mcp-openai-image-generation
-site_url: https://ai-zerolab.github.io/mcp-openai-image-generation
+repo_url: https://github.com/Niopub/openai-image-gen-edit
+site_url: https://Niopub.github.io/openai-image-gen-edit
 site_description: OpenAI image generation MCP server
-site_author: ai-zerolab
+site_author: Niopub
 edit_uri: edit/main/docs/
-repo_name: ai-zerolab/mcp-openai-image-generation
-copyright: Maintained by <a href="https://ai-zerolab.com">ai-zerolab</a>.
+repo_name: Niopub/openai-image-gen-edit
+copyright: Maintained by <a href="https://github.com/Niopub">Niopub</a>.
 
 nav:
   - Home: index.md
@@ -15,7 +15,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: ["mcp_openai_image_generation"]
+          paths: ["openai_image_gen_edit"]
 theme:
   name: material
   feature:
@@ -41,9 +41,9 @@ theme:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/ai-zerolab/mcp-openai-image-generation
+      link: https://github.com/Niopub/openai-image-gen-edit
     - icon: fontawesome/brands/python
-      link: https://pypi.org/project/mcp-openai-image-generation
+      link: https://pypi.org/project/openai-image-gen-edit
 
 markdown_extensions:
   - toc:

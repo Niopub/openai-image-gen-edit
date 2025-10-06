@@ -26,5 +26,5 @@ COPY . /app
 RUN uv sync --frozen
 
 # Run the server
-ENTRYPOINT ["tini", "--", "uv", "run", "mcp-openai-image-generation"]
+ENTRYPOINT ["tini", "--", "uv", "run", "openai-image-gen-edit"]
 CMD ["stdio"]

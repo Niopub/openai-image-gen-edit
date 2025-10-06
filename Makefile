@@ -44,6 +44,34 @@ docs-test: ## Test if documentation can be built without warnings or errors
 docs: ## Build and serve the documentation
 	@uv run mkdocs serve
 
+.PHONY: docker-build
+docker-build: ## Build Docker image (uses project name and version from pyproject.toml)
+	@echo "🚀 Building Docker image..."
+	@DOCKER_NAMESPACE=$${DOCKER_NAMESPACE:-niopub}; \
+	PROJECT_NAME=$$(grep '^name = ' pyproject.toml | cut -d'"' -f2); \
+	VERSION=$$(grep '^version = ' pyproject.toml | cut -d'"' -f2); \
+	docker build -t $$DOCKER_NAMESPACE/$$PROJECT_NAME:latest -t $$DOCKER_NAMESPACE/$$PROJECT_NAME:$$VERSION .
+	@echo "✅ Image built successfully"
+
+.PHONY: docker-test
+docker-test: ## Test Docker image locally with MCP initialize message
+	@echo "🚀 Testing Docker image..."
+	@DOCKER_NAMESPACE=$${DOCKER_NAMESPACE:-niopub}; \
+	PROJECT_NAME=$$(grep '^name = ' pyproject.toml | cut -d'"' -f2); \
+	echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"0.1.0","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | \
+	docker run --rm -i -e OPENAI_API_KEY=test-key $$DOCKER_NAMESPACE/$$PROJECT_NAME:latest 2>&1 | head -5
+	@echo "✅ Docker test completed"
+
+.PHONY: docker-publish
+docker-publish: ## Push Docker image to Docker Hub
+	@echo "🚀 Pushing Docker image to Docker Hub..."
+	@DOCKER_NAMESPACE=$${DOCKER_NAMESPACE:-niopub}; \
+	PROJECT_NAME=$$(grep '^name = ' pyproject.toml | cut -d'"' -f2); \
+	VERSION=$$(grep '^version = ' pyproject.toml | cut -d'"' -f2); \
+	docker push $$DOCKER_NAMESPACE/$$PROJECT_NAME:latest && \
+	docker push $$DOCKER_NAMESPACE/$$PROJECT_NAME:$$VERSION && \
+	echo "✅ Image pushed to: https://hub.docker.com/r/$$DOCKER_NAMESPACE/$$PROJECT_NAME"
+
 .PHONY: help
 help:
 	@uv run python -c "import re; \
