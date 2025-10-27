@@ -45,12 +45,13 @@ docs: ## Build and serve the documentation
 	@uv run mkdocs serve
 
 .PHONY: docker-build
-docker-build: ## Build Docker image (uses project name and version from pyproject.toml)
-	@echo "🚀 Building Docker image..."
+docker-build: ## Build Docker image locally for current platform
+	@echo "🚀 Building Docker image for local testing..."
 	@DOCKER_NAMESPACE=$${DOCKER_NAMESPACE:-niopub}; \
 	PROJECT_NAME=$$(grep '^name = ' pyproject.toml | cut -d'"' -f2); \
 	VERSION=$$(grep '^version = ' pyproject.toml | cut -d'"' -f2); \
-	docker build -t $$DOCKER_NAMESPACE/$$PROJECT_NAME:latest -t $$DOCKER_NAMESPACE/$$PROJECT_NAME:$$VERSION .
+	TIMESTAMP=$$(date +%s); \
+	docker build -t $$DOCKER_NAMESPACE/$$PROJECT_NAME:latest -t $$DOCKER_NAMESPACE/$$PROJECT_NAME:$$VERSION -t $$DOCKER_NAMESPACE/$$PROJECT_NAME:$$VERSION-$$TIMESTAMP .
 	@echo "✅ Image built successfully"
 
 .PHONY: docker-test
@@ -62,15 +63,30 @@ docker-test: ## Test Docker image locally with MCP initialize message
 	docker run --rm -i -e OPENAI_API_KEY=test-key $$DOCKER_NAMESPACE/$$PROJECT_NAME:latest 2>&1 | head -5
 	@echo "✅ Docker test completed"
 
+.PHONY: docker-setup-buildx
+docker-setup-buildx: ## Setup Docker buildx for multi-platform builds
+	@echo "🚀 Setting up Docker buildx builder..."
+	@if ! docker buildx ls | grep -q multiplatform-builder; then \
+		docker buildx create --name multiplatform-builder --driver docker-container --bootstrap --use; \
+		echo "✅ Created multiplatform-builder"; \
+	else \
+		docker buildx use multiplatform-builder; \
+		echo "✅ Using existing multiplatform-builder"; \
+	fi
+
 .PHONY: docker-publish
-docker-publish: ## Push Docker image to Docker Hub
-	@echo "🚀 Pushing Docker image to Docker Hub..."
+docker-publish: docker-setup-buildx ## Build multi-platform image and push to Docker Hub
+	@echo "🚀 Building and pushing multi-platform Docker image (linux/amd64, linux/arm64)..."
 	@DOCKER_NAMESPACE=$${DOCKER_NAMESPACE:-niopub}; \
 	PROJECT_NAME=$$(grep '^name = ' pyproject.toml | cut -d'"' -f2); \
 	VERSION=$$(grep '^version = ' pyproject.toml | cut -d'"' -f2); \
-	docker push $$DOCKER_NAMESPACE/$$PROJECT_NAME:latest && \
-	docker push $$DOCKER_NAMESPACE/$$PROJECT_NAME:$$VERSION && \
-	echo "✅ Image pushed to: https://hub.docker.com/r/$$DOCKER_NAMESPACE/$$PROJECT_NAME"
+	TIMESTAMP=$$(date +%s); \
+	docker buildx build --platform linux/amd64,linux/arm64 \
+		-t $$DOCKER_NAMESPACE/$$PROJECT_NAME:latest \
+		-t $$DOCKER_NAMESPACE/$$PROJECT_NAME:$$VERSION \
+		-t $$DOCKER_NAMESPACE/$$PROJECT_NAME:$$VERSION-$$TIMESTAMP \
+		--push . && \
+	echo "✅ Multi-platform image pushed to: https://hub.docker.com/r/$$DOCKER_NAMESPACE/$$PROJECT_NAME"
 
 .PHONY: help
 help:

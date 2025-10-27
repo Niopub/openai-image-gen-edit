@@ -53,6 +53,19 @@ docker pull niopub/openai-image-gen-edit:latest
 }
 ```
 
+### Testing the Docker Image
+
+To test that the Docker image is working correctly, send an MCP initialize message:
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | \
+  docker run --rm -i -e OPENAI_API_KEY=your-key niopub/openai-image-gen-edit:latest
+```
+
+You should see a JSON-RPC response with server capabilities.
+
+**Note:** When run without input, the container will wait for JSON-RPC messages on stdin - this is the expected behavior for MCP servers using stdio transport.
+
 ## Using This as a Boilerplate for New MCP Projects
 
 This repository includes a complete build/test/publish workflow for MCP servers. To use it for a new project:
@@ -86,13 +99,14 @@ ENTRYPOINT ["tini", "--", "uv", "run", "your-mcp-project-name"]
 ### 4. Build, Test, and Publish
 
 ```bash
-# Build Docker image (uses project name/version from pyproject.toml)
+# Build Docker image locally for current platform (fast, for testing)
 make docker-build
 
 # Test the image locally with MCP initialize message
 make docker-test
 
-# Push to Docker Hub (requires docker login or OAuth via Docker Desktop)
+# Build multi-platform (linux/amd64, linux/arm64) and push to Docker Hub
+# Requires: docker login and Docker buildx
 make docker-publish
 ```
 
@@ -104,6 +118,8 @@ DOCKER_NAMESPACE=yourusername make docker-test
 DOCKER_NAMESPACE=yourusername make docker-publish
 ```
 
+**Note:** `docker-publish` automatically builds for both AMD64 (x86_64) and ARM64 platforms to ensure compatibility across different architectures.
+
 ### 5. Available Make Commands
 
 Run `make help` to see all available commands:
@@ -114,7 +130,7 @@ make check             # Run code quality tools
 make test              # Run pytest
 make build             # Build Python wheel
 make publish           # Publish to PyPI
-make docker-build      # Build Docker image
+make docker-build      # Build Docker image locally for current platform
 make docker-test       # Test Docker image locally
-make docker-publish    # Push Docker image to Docker Hub
+make docker-publish    # Build multi-platform image and push to Docker Hub
 ```

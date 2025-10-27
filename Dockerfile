@@ -17,14 +17,17 @@ COPY uv.lock /app/uv.lock
 COPY pyproject.toml /app/pyproject.toml
 
 # Install dependencies
-RUN uv sync --frozen --no-install-project
+RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy the project into the image
 COPY . /app
 
-# Sync the project
-RUN uv sync --frozen
+# Sync the project and install it
+RUN uv sync --frozen --no-dev
+
+# Use the installed CLI directly instead of uv run to avoid rebuilds
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Run the server
-ENTRYPOINT ["tini", "--", "uv", "run", "openai-image-gen-edit"]
+ENTRYPOINT ["tini", "--", "openai-image-gen-edit"]
 CMD ["stdio"]

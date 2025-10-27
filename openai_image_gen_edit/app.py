@@ -6,8 +6,42 @@ from typing import Annotated
 import tempfile
 import io
 import logging
+import sys
+from datetime import datetime
 
-logger = logging.getLogger(__name__)
+# Configure file-based logging for MCP stdio server
+def setup_logging():
+    """Setup file-based logging for MCP server since stdio is used for MCP protocol."""
+    pid = os.getpid()
+    log_file = f"/var/mcp_niopub_image_gen_{pid}.log"
+    
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+    
+    # Remove any existing handlers
+    logger.handlers.clear()
+    
+    # Create file handler
+    try:
+        file_handler = logging.FileHandler(log_file, mode='a')
+        file_handler.setLevel(logging.INFO)
+        
+        # Create formatter
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(formatter)
+        
+        logger.addHandler(file_handler)
+        logger.info(f"=== MCP Server Started (PID: {pid}, Log: {log_file}) ===")
+        return logger
+    except Exception as e:
+        # Fallback to stderr if file logging fails
+        print(f"Failed to setup file logging: {e}", file=sys.stderr)
+        return logger
+
+logger = setup_logging()
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ImageContent
@@ -113,36 +147,44 @@ def generate_image(
         ),
     ] = None,
 ) -> ImageContent | list[ImageContent] | dict:
-    # logger.info(f"Generating image with prompt {prompt} and model {model}")
-    response = client.images.generate(
-        prompt=prompt,
-        background=background if (model == 'gpt-image-1' and background) else NOT_GIVEN,
-        n=n,
-        quality=quality,
-        model=model,
-        output_format=output_format if model == 'gpt-image-1' else NOT_GIVEN,
-        response_format='b64_json' if model in ['dall-e-2', 'dall-e-3'] else NOT_GIVEN,
-        size=size,
-    )
-    # logger.info(f"Generated image response {len(response.data)} with usage {response.usage}")
-    if not response.data:
-        return {"generated_images": [], "message": "No images generated"}
-
-    case_id = uuid.uuid4().hex
-    result = []
-    for count, image in enumerate(response.data):
-        image_base64 = image.b64_json
-        result.append(
-            ImageContent(
-                type="image",
-                data=image_base64,
-                mimeType=f"image/{output_format}",
-                annotations={"case_id": case_id, "count": count, "prompt": prompt},
-            )
+    logger.info(f"generate_image called - model: {model}, prompt: {prompt[:100]}..., n: {n}, quality: {quality}, size: {size}, background: {background}, output_format: {output_format}")
+    
+    try:
+        response = client.images.generate(
+            prompt=prompt,
+            background=background if (model == 'gpt-image-1' and background) else NOT_GIVEN,
+            n=n,
+            quality=quality,
+            model=model,
+            output_format=output_format if model == 'gpt-image-1' else NOT_GIVEN,
+            response_format='b64_json' if model in ['dall-e-2', 'dall-e-3'] else NOT_GIVEN,
+            size=size,
         )
-    if len(result) == 1:
-        result = result[0]
-    return {"generated_images": result} if output_dir else result
+        logger.info(f"API response received - images: {len(response.data)}, usage: {response.usage if hasattr(response, 'usage') else 'N/A'}")
+        
+        if not response.data:
+            logger.warning("No images generated in response")
+            return {"generated_images": [], "message": "No images generated"}
+
+        case_id = uuid.uuid4().hex
+        result = []
+        for count, image in enumerate(response.data):
+            image_base64 = image.b64_json
+            result.append(
+                ImageContent(
+                    type="image",
+                    data=image_base64,
+                    mimeType=f"image/{output_format}",
+                    annotations={"case_id": case_id, "count": count, "prompt": prompt},
+                )
+            )
+        if len(result) == 1:
+            result = result[0]
+        logger.info(f"generate_image completed - case_id: {case_id}, images: {len(response.data)}")
+        return {"generated_images": result} if output_dir else result
+    except Exception as e:
+        logger.error(f"generate_image failed - error: {str(e)}", exc_info=True)
+        raise
 
 
 @mcp.tool(
@@ -223,39 +265,49 @@ def edit_image(
         ),
     ] = "auto",
 ) -> list[ImageContent] | ImageContent | dict:
-    images_fp = [open(image, "rb") for image in images]  # noqa: SIM115
-    mask = open(mask, "rb") if mask else NOT_GIVEN # noqa: SIM115
-    response = client.images.edit(
-        image=images_fp,
-        prompt=prompt,
-        background=background,
-        mask=mask,
-        quality=quality,
-        model=model,
-        n=n,
-        response_format=response_format if model in ['dall-e-2', 'dall-e-3'] else NOT_GIVEN,
-        size=size,
-    )
+    logger.info(f"edit_image called - model: {model}, prompt: {prompt[:100]}..., images: {images}, mask: {mask}, n: {n}, quality: {quality}, size: {size}, background: {background}, response_format: {response_format}")
+    
+    try:
+        images_fp = [open(image, "rb") for image in images]  # noqa: SIM115
+        mask_fp = open(mask, "rb") if mask else NOT_GIVEN # noqa: SIM115
+        
+        response = client.images.edit(
+            image=images_fp,
+            prompt=prompt,
+            background=background,
+            mask=mask_fp,
+            quality=quality,
+            model=model,
+            n=n,
+            response_format=response_format if model in ['dall-e-2', 'dall-e-3'] else NOT_GIVEN,
+            size=size,
+        )
+        logger.info(f"API response received - images: {len(response.data)}, usage: {response.usage if hasattr(response, 'usage') else 'N/A'}")
 
-    if not response.data:
-        return {"generated_images": [], "message": "No images generated"}
+        if not response.data:
+            logger.warning("No images generated in response")
+            return {"generated_images": [], "message": "No images generated"}
 
-    case_id = uuid.uuid4().hex
-    result = []
-    for count, image in enumerate(response.data):
-        if response_format == 'url':
-            result.append(image.url)
-        else:
-            image_base64 = image.b64_json
-            output_format = detect_image_type(image_base64)
-            result.append(
-                ImageContent(
-                    type="image",
-                    data=image_base64,
-                    mimeType=f"image/{output_format}",
-                    annotations={"case_id": case_id, "count": count, "prompt": prompt},
+        case_id = uuid.uuid4().hex
+        result = []
+        for count, image in enumerate(response.data):
+            if response_format == 'url':
+                result.append(image.url)
+            else:
+                image_base64 = image.b64_json
+                output_format = detect_image_type(image_base64)
+                result.append(
+                    ImageContent(
+                        type="image",
+                        data=image_base64,
+                        mimeType=f"image/{output_format}",
+                        annotations={"case_id": case_id, "count": count, "prompt": prompt},
+                    )
                 )
-            )
-    if len(result) == 1:
-        result = result[0]
-    return {"generated_images_urls": result} if response_format == 'url' else result
+        if len(result) == 1:
+            result = result[0]
+        logger.info(f"edit_image completed - case_id: {case_id}, images: {len(response.data)}")
+        return {"generated_images_urls": result} if response_format == 'url' else result
+    except Exception as e:
+        logger.error(f"edit_image failed - error: {str(e)}", exc_info=True)
+        raise
