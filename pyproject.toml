@@ -1,7 +1,7 @@
 [project]
 name = "openai-image-gen-edit"
-version = "0.2.0"
-description = "OpenAI image generation and editing MCP server"
+version = "0.3.0"
+description = "OpenAI+Together.AI image generation and editing MCP server"
 authors = [{ name = "Founder DS", email = "founder@niopub.com" }]
 readme = "README.md"
 keywords = ['python', 'openai', 'image', 'generation', 'edit']
@@ -20,6 +20,8 @@ dependencies = [
     "mcp[cli]>=1.3.0",
     "openai>=1.78.1",
     "pydantic>=2.11.4",
+    "requests>=2.31.0",
+    "together>=1.2.0",
     "typer>=0.15.3",
 ]
 

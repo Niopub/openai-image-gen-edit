@@ -1,6 +1,6 @@
 import typer
 
-from openai_image_gen_edit.app import mcp
+from openai_image_gen_edit.together_app import mcp
 
 app = typer.Typer()
 
