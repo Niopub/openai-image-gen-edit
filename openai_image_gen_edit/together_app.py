@@ -3,12 +3,14 @@ import os
 import uuid
 import logging
 import sys
+from io import BytesIO
 from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ImageContent
-from together import Together
 from pydantic import Field
+from PIL import Image
+from together import Together
 
 # Configure file-based logging for MCP stdio server
 def setup_logging():
@@ -83,7 +85,7 @@ def detect_image_type(b64string: str) -> str:
         return "webp"
     return "png"  # default to png
 
-@mcp.tool(description="Generate an image from a text description using Together AI.")
+@mcp.tool(description="Generate an image from a text description using the image model.")
 def generate_image(
     prompt: Annotated[str, Field(description="A text description of the desired image.")],
 ) -> ImageContent:
@@ -221,5 +223,61 @@ def describe_image(
         return description
     except Exception as e:
         logger.error(f"describe_image failed - error: {str(e)}", exc_info=True)
+        raise
+
+
+@mcp.tool(description="Download an image from a URL, normalize format, and return it.")
+def download_image_from_url(
+    image_url: Annotated[str, Field(description="Direct URL of the image to download.")],
+) -> ImageContent:
+    logger.info(f"download_image_from_url called - url: {image_url}")
+
+    try:
+        import requests
+
+        response = requests.get(image_url, timeout=30)
+        response.raise_for_status()
+        original_bytes = response.content
+
+        with Image.open(BytesIO(original_bytes)) as img:
+            image_format = (img.format or "").upper()
+            
+            # Upscale if min dimension < 1080
+            min_dim = min(img.width, img.height)
+            if min_dim < 1080:
+                scale = 1080 / min_dim
+                new_size = (int(img.width * scale), int(img.height * scale))
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+            
+            if image_format not in {"PNG", "JPEG"}:
+                with BytesIO() as buffer:
+                    img.convert("RGB").save(buffer, format="JPEG")
+                    final_bytes = buffer.getvalue()
+                mime_type = "image/jpeg"
+            else:
+                # Re-encode since we may have upscaled
+                with BytesIO() as buffer:
+                    if image_format == "PNG":
+                        img.save(buffer, format="PNG")
+                        mime_type = "image/png"
+                    else:
+                        img.convert("RGB").save(buffer, format="JPEG")
+                        mime_type = "image/jpeg"
+                    final_bytes = buffer.getvalue()
+
+        case_id = uuid.uuid4().hex
+        image_base64 = base64.b64encode(final_bytes).decode("utf-8")
+
+        result = ImageContent(
+            type="image",
+            data=image_base64,
+            mimeType=mime_type,
+            annotations={"case_id": case_id, "source_url": image_url},
+        )
+
+        logger.info(f"download_image_from_url completed - case_id: {case_id}, mime: {mime_type}")
+        return result
+    except Exception as e:
+        logger.error(f"download_image_from_url failed - error: {str(e)}", exc_info=True)
         raise
 
